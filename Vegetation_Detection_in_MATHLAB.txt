@@ -1,0 +1,217 @@
+clc;
+close all;
+% Read the RGB image
+Img1 = imread('_bjorbo 045.jpg'); 
+Img = Img1;
+X = Img1;
+X1=X;
+X11=X;
+
+figure,imshow(Img1),title('Original Image');
+
+% Extract Soft Green Vegetation
+Tcon=0;
+[Veg,RailWoodSoil] = Extractgreen(X,Tcon);
+Veg1=Veg;
+
+figure,imshow(Veg1),title('Vegetation 1 (Soft)');
+
+% Extract Hard Green Vegetation
+X=RailWoodSoil;
+Tcon=1;
+[Veg,RailWoodSoil] = Extractgreen(X,Tcon);
+Veg2=Veg;
+figure,imshow(Veg2),title('Vegetation 2 (Hard)');
+
+VegetationTotal= imadd(Veg1,Veg2);
+figure,imshow(VegetationTotal),title('Total Green Vegetation');
+
+figure,imshow(RailWoodSoil),title('Broun Vegetation, Stone and Man made object (With out Green Vegetation)');
+
+% Convert rest of the image  of  brown vegetation and Manmade object from RGB to HSV
+% and increase the ‘V’ value in HSV color space where it is low
+Img=RailWoodSoil;
+[OutImg] = ColorMoHisteq(Img);
+figure,imshow(OutImg),title('Color Histogram Modification');
+
+
+% Use the range filter in different color space to detect the rail line and  slipper
+cform = makecform('srgb2cmyk'); 
+LAB = applycform(OutImg, cform);
+rLAB = rangefilt(LAB);
+
+% JR=rLAB(:,:,1);
+% Thrashold=.085;   %JR=rLAB(:,:,1) Thrashold=.08
+% 
+% [VegSoil,RailWood] = Removerailwood(JR,Img,Thrashold);
+% 
+% VS0=VegSoil;
+% RW0=RailWood;
+
+JR=rLAB(:,:,2);
+Thrashold=.094; % JR=rLAB(:,:,2)Thrashold=.0875 or more  % a .07  .06
+
+[VegSoil,RailWood] = Removerailwood(JR,Img,Thrashold);
+
+VS1=VegSoil;
+RW1=RailWood;
+
+JR=rLAB(:,:,3);
+Thrashold=.125; % JR=rLAB(:,:,3) Thrashold=.13   to .075 % b .03
+
+[VegSoil,RailWood] = Removerailwood(JR,Img,Thrashold);
+
+VS2=VegSoil;
+RW2=RailWood;
+
+JR=rLAB(:,:,4);
+Thrashold=.09; % JR=rLAB(:,:,3) Thrashold=.09   to .075 % b .03
+
+[VegSoil,RailWood] = Removerailwood(JR,Img,Thrashold);
+
+VS3=VegSoil;
+RW3=RailWood;
+
+% Add the rail and slipper images which were getting from the different color spaces
+% RWS1= imadd(RW0,RW1);
+RWS2= imadd(RW2,RW3);
+RWS2 = logical(RWS2);
+RailWoodTotal= imadd(RW1,RWS2);
+
+figure,imshow(RailWoodTotal),title('Total Rail & Wood');
+
+
+
+RailWoodTotal2 = logical(RailWoodTotal);
+X = Img;
+roughMask =RailWoodTotal2;
+J1 = rgb2gray(Img);
+I2 = J1;
+I2(roughMask) = 255;
+% figure,imshow(I2),title('I2(roughMask) = 255');
+
+s=size(I2);%---size of matrix----
+r=s(1);%---Number of rows----
+c=s(2);%----Number of columns-----
+
+for i=1:r
+    for j=1:c  
+        
+          
+        if I2(i,j)< 255
+              X(i,j,1) = X(i,j,1);
+              X(i,j,2) = X(i,j,2);
+              X(i,j,3) = X(i,j,3);
+        else
+             X(i,j,1) = 0;
+             X(i,j,2) = 0;
+             X(i,j,3) = 0;
+        end
+
+%               ExG(i,j) = 255;
+%         end
+
+    end
+end
+figure,imshow(X),title('Brown Vegetation, Soil, Stone Without rail & wood');
+
+% Take the image of Brown vegetation,soil,stone
+Y = X;
+HV = rgb2hsv(Y);
+
+%  figure,imshow(Y); 
+ figure,imshow(HV); 
+ 
+s=size(HV);%---size of matrix----
+r=s(1);%---Number of rows----
+c=s(2);%----Number of columns-----
+% if  Tcon>0
+ for i=1:r
+    for j=1:c  
+        
+%        
+        
+         if HV(i,j,1)>.278 & HV(i,j,1)<.389%
+%             
+            HV(i,j) = HV(i,j);
+         else
+              HV(i,j,1) = 1;
+%                HV(i,j) = HV(i,j);
+         end
+%         
+    end
+ end
+% figure,imshow(HV),title('New HV');
+M1 = hsv2rgb(HV);
+imwrite(M1,'New rgb.jpg');
+M1 = imread('New rgb.jpg');
+% M1= uint8(M1);
+Rimg=M1;
+Oimg=Y;
+[BrownVeg,Manmade] = Extractbrownvegetation(Rimg,Oimg)
+
+figure,imshow(BrownVeg),title('Brown Vegetation ');
+% figure,imshow(Manmade),title('Man made object');
+
+VegetationTotalwithbrown= imadd(VegetationTotal,BrownVeg);
+
+figure,imshow(VegetationTotalwithbrown),title('Vegetation Total with brown vegetation');
+
+PP = X11;
+s=size(X);%---size of matrix----
+r=s(1);%---Number of rows----
+c=s(2);%----Number of columns-----
+for i=1:r
+    for j=1:c  
+
+        if VegetationTotalwithbrown(i,j)== 0
+             
+             PP(i,j) = PP(i,j);
+
+        end
+            if VegetationTotalwithbrown(i,j)> 0
+               PP(i,j,1) = 0;
+               PP(i,j,2) = 0;
+               PP(i,j,3) = 0;
+        end
+               
+       
+    end
+end
+figure,imshow(PP),title('Total Man made');
+
+
+% Calculating the amount of vegetation in percentage (%)
+
+count=0;
+[r c s]=size(VegetationTotalwithbrown);%---size of matrix----
+ for i=1:r
+    for j=1:c  
+%         for k=1:s
+%             if (VegetationTotalwithbrown(i,j,s) >= 1)
+%             count=count+1;
+%             end
+            if (VegetationTotalwithbrown(i,j,1) >= 1 && VegetationTotalwithbrown(i,j,2) >= 1 && VegetationTotalwithbrown(i,j,3) >= 1)
+            count=count+1;
+            end
+%         end    
+    end
+ end
+ 
+Vegetation_In_Percentage=(count/(r*c))*100
+
+[B L N]=bwboundaries(rgb2gray(VegetationTotalwithbrown));
+
+figure,imshow(Img1);hold on;
+for k=1:length(B)
+    boundary=B{k};
+    if (k <= N)
+        plot(boundary(:,2), boundary(:,1), 'r','LineWidth', 1);
+    end
+end
+
+
+
+
+
+ 
